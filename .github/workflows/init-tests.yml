@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # - name: Set up Python
       #   uses: actions/setup-python@v5
@@ -38,7 +38,7 @@ jobs:
           VINS_OUTPUT_ROOT: /run/media/sydai/disk/dataset/swimming_pool/test_vins_results
         run: |
           mkdir -p reports
-          pytest pytest/test_vins.py --junitxml=reports/results.xml -v
+          pytest pytest/test_run_vins.py --junitxml=reports/results.xml -v
 
       - name: Upload test results as artifact
         uses: actions/upload-artifact@v4
