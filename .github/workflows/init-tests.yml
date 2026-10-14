@@ -33,7 +33,7 @@ jobs:
         continue-on-error: true
         env:
           VINS_WORKSPACE: /run/media/sydai/disk/git_ws/vins_ws
-          VINS_BAG_ROOT: /run/media/sydai/disk/dataset/swimming_pool/sim
+          VINS_BAG_ROOT: /run/media/sydai/disk/dataset/swimming_pool/sim/test
           VINS_CONFIG: /run/media/sydai/disk/git_ws/vins_ws/src/VINS-Fusion-ROS2/config/simulation/sim_config.yaml
           VINS_OUTPUT_ROOT: /run/media/sydai/disk/dataset/swimming_pool/test_vins_results
         run: |
