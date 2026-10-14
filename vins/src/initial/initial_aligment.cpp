@@ -10,14 +10,16 @@
  *******************************************************/
 
 #include "initial_alignment.h"
-
+// 初始化时对陀螺仪进行零偏标定
 void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs)
 {
+    // A*x = b
     Matrix3d A;
     Vector3d b;
     Vector3d delta_bg;
     A.setZero();
     b.setZero();
+    // frame i j之间是相邻的两个图像帧
     map<double, ImageFrame>::iterator frame_i;
     map<double, ImageFrame>::iterator frame_j;
     for (frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++)
@@ -27,9 +29,12 @@ void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs)
         tmp_A.setZero();
         VectorXd tmp_b(3);
         tmp_b.setZero();
+        // 计算ij帧之间的相对旋转
         Eigen::Quaterniond q_ij(frame_i->second.R.transpose() * frame_j->second.R);
+        //旋转残差对陀螺仪零偏的偏导数
         tmp_A = frame_j->second.pre_integration->jacobian.template block<3, 3>(O_R, O_BG);
         tmp_b = 2 * (frame_j->second.pre_integration->delta_q.inverse() * q_ij).vec();
+        //所有帧对的约束叠加在一起
         A += tmp_A.transpose() * tmp_A;
         b += tmp_A.transpose() * tmp_b;
     }

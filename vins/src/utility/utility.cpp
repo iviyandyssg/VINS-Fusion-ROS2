@@ -12,7 +12,8 @@
 Eigen::Matrix3d Utility::g2R(const Eigen::Vector3d &g)
 {
     Eigen::Matrix3d R0;
-    Eigen::Vector3d ng1 = g.normalized();
+    Eigen::Vector3d ng1 = g.normalized(); //g方向的单位向量
+    //把body的重力方向转到世界坐标系的z轴
     Eigen::Vector3d ng2{0, 0, 1.0};
     R0 = Eigen::Quaterniond::FromTwoVectors(ng1, ng2).toRotationMatrix();
     double yaw = Utility::R2ypr(R0).x();

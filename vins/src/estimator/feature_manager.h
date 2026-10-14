@@ -31,7 +31,7 @@ using namespace Eigen;
 #define ROS_DEBUG RCUTILS_LOG_DEBUG
 #define ROS_ERROR RCUTILS_LOG_ERROR
 
-
+//一个img帧内的一个合格的像素点
 class FeaturePerFrame
 {
   public:
@@ -59,19 +59,20 @@ class FeaturePerFrame
         is_stereo = true;
     }
     double cur_td;
-    Vector3d point, pointRight;
-    Vector2d uv, uvRight;
-    Vector2d velocity, velocityRight;
+    Vector3d point, pointRight;//归一化平面坐标
+    Vector2d uv, uvRight;//像素坐标
+    Vector2d velocity, velocityRight;//在xy轴的速度
     bool is_stereo;
 };
-
+// 一个合格的像素点所在的所有帧
+// 在实际应用中，windows的大小是确定的，而且只会考虑其中连续的部分，所以只需要记录start frame id
 class FeaturePerId
 {
   public:
     const int feature_id;
     int start_frame;
-    vector<FeaturePerFrame> feature_per_frame;
-    int used_num;
+    vector<FeaturePerFrame> feature_per_frame;//出现在不同帧对于的像素坐标
+    int used_num;//feature_per_frame.size
     double estimated_depth;
     int solve_flag; // 0 haven't solve yet; 1 solve succ; 2 solve fail;
 
@@ -109,11 +110,12 @@ class FeatureManager
     void removeBack();
     void removeFront(int frame_count);
     void removeOutlier(set<int> &outlierIndex);
-    list<FeaturePerId> feature;
-    int last_track_num;
+    list<FeaturePerId> feature;//windows内所有帧的所有特征点的集合
+    // 可以用于判断关键帧和delete旧帧以后判断feature是否需要删除
+    int last_track_num;//一个frame内的旧feature
     double last_average_parallax;
-    int new_feature_num;
-    int long_track_num;
+    int new_feature_num;//一个frame内的新feature
+    int long_track_num;//一个frame内可以长期跟踪（>4 frame)的特征点数
 
   private:
     double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);

@@ -101,6 +101,9 @@ double FeatureTracker::distance(cv::Point2f &pt1, cv::Point2f &pt2)
     return sqrt(dx * dx + dy * dy);
 }
 
+// 光流跟踪+特征点管理
+// return map key = track id，vector内pair int = camera id，Matrix是特征点在该相机的 归一化平面xzy(1-3,z=1), 像素坐标uv(4-5), 速度在xy轴(6-7)
+// 如果是双目，可能一个特征点对应两个camera id，有两个像素坐标，所以track id 需要对应vector
 map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackImage(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1)
 {
     TicToc t_r;

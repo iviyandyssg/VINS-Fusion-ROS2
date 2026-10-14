@@ -26,7 +26,7 @@ using namespace std;
 #define ROS_DEBUG RCUTILS_LOG_DEBUG
 #define ROS_ERROR RCUTILS_LOG_ERROR
 
-
+//一个图像帧
 class ImageFrame
 {
     public:

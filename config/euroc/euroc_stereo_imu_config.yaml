@@ -3,17 +3,22 @@
 #common parameters
 #support: 1 imu 1 cam; 1 imu 2 cam: 2 cam; 
 imu: 1         
-num_of_cam: 2  
+num_of_cam: 2 
 
-imu_topic: "/imu0"
-image0_topic: "/cam0/image_raw"
-image1_topic: "/cam1/image_raw"
-output_path: "~/output/"
+# imu_topic: "/Sim/SceneNonphysicsDrone/robots/Drone1/sensors/IMU1/imu_kinematics"
+# image0_topic: "/Sim/SceneNonphysicsDrone/robots/Drone1/sensors/LeftCamera/scene_camera/image"
+# image1_topic: "/Sim/SceneNonphysicsDrone/robots/Drone1/sensors/RightCamera/scene_camera/image"
+output_path: "/run/media/sydai/disk/git_ws/vins_ws/src/script/results_pool/baseline/rosbag2_2026_05_22-18_05_36_baseline/001"
+imu_topic: "/imu/data_raw"
+image0_topic: "/camera/left"
+image1_topic: "/camera/right"
 
-cam0_calib: "cam0_mei.yaml"
-cam1_calib: "cam1_mei.yaml"
-image_width: 752
-image_height: 480
+cam0_calib: "cam0_pinhole.yaml"
+cam1_calib: "cam1_pinhole.yaml"
+# image_width: 640
+# image_height: 480
+image_width: 960
+image_height: 540
 
 # GPU acceleration
 use_gpu         : 0
@@ -25,23 +30,41 @@ use_gpu_ceres   : 0
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
 
+# body_T_cam0: !!opencv-matrix
+#    rows: 4
+#    cols: 4
+#    dt: d
+#    data: [0, 0, 1, 0.25,
+#            -1, 0, 0, 0.03,
+#            0,  -1,  0,  0.10,
+#            0, 0, 0, 1]
+
+# body_T_cam1: !!opencv-matrix
+#    rows: 4
+#    cols: 4
+#    dt: d
+#    data: [0, 0, 1, 0.25,
+#            -1, 0, 0, -0.03,
+#            0,  -1,  0,  0.10,
+#            0, 0, 0, 1]
+
 body_T_cam0: !!opencv-matrix
    rows: 4
    cols: 4
    dt: d
-   data: [0.0148655429818, -0.999880929698, 0.00414029679422, -0.0216401454975,
-           0.999557249008, 0.0149672133247, 0.025715529948,  -0.064676986768,
-           -0.0257744366974, 0.00375618835797, 0.999660727178, 0.00981073058949,
+   data: [-0.033143,  0.024188,  0.999160,  0.065833,
+           0.000000,  0.999707, -0.024193,  0.061311,
+           -0.999450,  0.000802,  0.033135,  0.016527,
            0, 0, 0, 1]
 
 body_T_cam1: !!opencv-matrix
    rows: 4
    cols: 4
    dt: d
-   data: [0.0125552670891, -0.999755099723, 0.0182237714554, -0.0198435579556,
-           0.999598781151, 0.0130119051815, 0.0251588363115, 0.0453689425024,
-          -0.0253898008918, 0.0179005838253, 0.999517347078, 0.00786212447038,
-          0, 0, 0, 1]
+   data: [-0.032460,  0.028201,  0.998858,  0.064575,
+           0.000000,  0.999602, -0.028218, -0.002218,
+           -0.999473,  0.000916,  0.032449,  0.016422,
+           0, 0, 0, 1]
 
 #Multiple thread support
 multiple_thread: 1
@@ -65,6 +88,17 @@ gyr_n: 0.01         # gyroscope measurement noise standard deviation.
 acc_w: 0.001        # accelerometer bias random work noise standard deviation.  
 gyr_w: 0.0001       # gyroscope bias random work noise standard deviation.     
 g_norm: 9.81007     # gravity magnitude
+
+# acc_n: 0.2          # accelerometer measurement noise standard deviation. 
+# gyr_n: 0.02         # gyroscope measurement noise standard deviation.     
+# acc_w: 0.002        # accelerometer bias random work noise standard deviation.  
+# gyr_w: 0.0002       # gyroscope bias random work noise standard deviation.  
+
+# acc_n: 1e-2
+# gyr_n: 1e-3
+# acc_w: 1e-4
+# gyr_w: 1e-5
+# g_norm: 9.80665
 
 #unsynchronization parameters
 estimate_td: 0                      # online estimate time offset between camera and imu

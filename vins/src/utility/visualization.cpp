@@ -31,6 +31,7 @@ static Vector3d last_path(0.0, 0.0, 0.0);
 
 size_t pub_counter = 0;
 
+// 注册发布器
 void registerPub(rclcpp::Node::SharedPtr n)
 {
     pub_latest_odometry = n->create_publisher<nav_msgs::msg::Odometry>("imu_propagate", 10);
@@ -50,6 +51,7 @@ void registerPub(rclcpp::Node::SharedPtr n)
     cameraposevisual.setLineWidth(0.01);
 }
 
+// pub "imu_propagate"
 void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, double t)
 {
     nav_msgs::msg::Odometry odometry;
@@ -73,6 +75,7 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     pub_latest_odometry->publish(odometry);
 }
 
+// pub "image_track" 当前正在处理的image
 void pubTrackImage(const cv::Mat &imgTrack, const double t)
 {
     std_msgs::msg::Header header;
@@ -88,7 +91,7 @@ void pubTrackImage(const cv::Mat &imgTrack, const double t)
     pub_image_track->publish(*imgTrackMsg);
 }
 
-
+// 更新 extrinsic_parameter.csv
 void printStatistics(const Estimator &estimator, double t)
 {
     if (estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
@@ -132,6 +135,7 @@ void printStatistics(const Estimator &estimator, double t)
         ROS_INFO("td %f", estimator.td);
 }
 
+// pub "odometry" "path" 更新vio.csv
 void pubOdometry(const Estimator &estimator, const std_msgs::msg::Header &header)
 {
     if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
@@ -164,22 +168,39 @@ void pubOdometry(const Estimator &estimator, const std_msgs::msg::Header &header
         pub_path->publish(path);
 
         // write result to file
+	    // double turetime = header.stamp.toSec();
+        double turetime = header.stamp.sec + header.stamp.nanosec * 1e-9;
         ofstream foutC(VINS_RESULT_PATH, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
-        foutC.precision(0);
-        foutC << header.stamp.sec + header.stamp.nanosec * (1e-9) << ",";
-        foutC.precision(5);
-        foutC << estimator.Ps[WINDOW_SIZE].x() << ","
-              << estimator.Ps[WINDOW_SIZE].y() << ","
-              << estimator.Ps[WINDOW_SIZE].z() << ","
-              << tmp_Q.w() << ","
-              << tmp_Q.x() << ","
-              << tmp_Q.y() << ","
-              << tmp_Q.z() << ","
-              << estimator.Vs[WINDOW_SIZE].x() << ","
-              << estimator.Vs[WINDOW_SIZE].y() << ","
-              << estimator.Vs[WINDOW_SIZE].z() << "," << endl;
+        foutC << setprecision(9);
+        foutC << turetime << " ";
+        foutC << estimator.Ps[WINDOW_SIZE].x() << " "
+              << estimator.Ps[WINDOW_SIZE].y() << " "
+              << estimator.Ps[WINDOW_SIZE].z() << " "
+              << tmp_Q.x() << " "
+              << tmp_Q.y() << " "
+              << tmp_Q.z() << " "
+              << tmp_Q.w() << endl;
         foutC.close();
+
+
+        // write result to file
+        // ofstream foutC(VINS_RESULT_PATH, ios::app);
+        // foutC.setf(ios::fixed, ios::floatfield);
+        // foutC.precision(0);
+        // foutC << header.stamp.sec + header.stamp.nanosec * (1e-9) << ",";
+        // foutC.precision(5);
+        // foutC << estimator.Ps[WINDOW_SIZE].x() << ","
+        //       << estimator.Ps[WINDOW_SIZE].y() << ","
+        //       << estimator.Ps[WINDOW_SIZE].z() << ","
+        //       << tmp_Q.w() << ","
+        //       << tmp_Q.x() << ","
+        //       << tmp_Q.y() << ","
+        //       << tmp_Q.z() << ","
+        //       << estimator.Vs[WINDOW_SIZE].x() << ","
+        //       << estimator.Vs[WINDOW_SIZE].y() << ","
+        //       << estimator.Vs[WINDOW_SIZE].z() << "," << endl;
+        // foutC.close();
         Eigen::Vector3d tmp_T = estimator.Ps[WINDOW_SIZE];
         printf("time: %f, t: %f %f %f q: %f %f %f %f \n", header.stamp.sec + header.stamp.nanosec * (1e-9),
                                                           tmp_T.x(), tmp_T.y(), tmp_T.z(),

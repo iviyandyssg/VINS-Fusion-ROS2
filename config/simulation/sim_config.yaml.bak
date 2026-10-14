@@ -1,0 +1,99 @@
+%YAML:1.0
+
+#common parameters
+#support: 1 imu 1 cam; 1 imu 2 cam: 2 cam; 
+imu: 1         
+num_of_cam: 2  
+
+imu_topic: "/Sim/SceneNonphysicsDrone/robots/Drone1/sensors/IMU1/imu_kinematics"
+image0_topic: "/Sim/SceneNonphysicsDrone/robots/Drone1/sensors/LeftCamera/scene_camera/image"
+image1_topic: "/Sim/SceneNonphysicsDrone/robots/Drone1/sensors/RightCamera/scene_camera/image"
+output_path: "/run/media/sydai/disk/dataset/swimming_pool/sim/direct-rectangle-001"
+
+cam0_calib: "sim_cam0_pinhole.yaml"
+cam1_calib: "sim_cam1_pinhole.yaml"
+image_width: 640
+image_height: 480
+
+# GPU acceleration
+use_gpu         : 0
+use_gpu_acc_flow: 0
+use_gpu_ceres   : 0
+   
+
+# Extrinsic parameter between IMU and Camera.
+estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+                        # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
+
+# body_T_cam0: !!opencv-matrix
+#    rows: 4
+#    cols: 4
+#    dt: d
+#    data: [0, 0, 1, 0.25,
+#            -1, 0, 0, 0.03,
+#            0,  -1,  0,  0.10,
+#            0, 0, 0, 1]
+
+# body_T_cam1: !!opencv-matrix
+#    rows: 4
+#    cols: 4
+#    dt: d
+#    data: [0, 0, 1, 0.25,
+#            -1, 0, 0, -0.03,
+#            0,  -1,  0,  0.10,
+#            0, 0, 0, 1]
+
+body_T_cam0: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [0, 0, 1, 0.25,
+          1, 0, 0, -0.03,
+          0, 1, 0, -0.1,
+          0, 0, 0, 1]
+
+body_T_cam1: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [0, 0, 1, 0.25,
+          1, 0, 0, 0.03,
+          0, 1, 0, -0.1,
+          0, 0, 0, 1]
+
+#Multiple thread support
+multiple_thread: 1
+
+#feature traker paprameters
+max_cnt: 150            # max feature number in feature tracking
+min_dist: 30            # min distance between two features 
+freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
+F_threshold: 1.0        # ransac threshold (pixel)
+show_track: 1           # publish tracking image as topic
+flow_back: 1            # perform forward and backward optical flow to improve feature tracking accuracy
+
+#optimization parameters
+max_solver_time: 0.04  # max solver itration time (ms), to guarantee real time
+max_num_iterations: 8   # max solver itrations, to guarantee real time
+keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
+
+#imu parameters       The more accurate parameters you provide, the better performance
+# acc_n: 0.1          # accelerometer measurement noise standard deviation. 
+# gyr_n: 0.01         # gyroscope measurement noise standard deviation.     
+# acc_w: 0.001        # accelerometer bias random work noise standard deviation.  
+# gyr_w: 0.0001       # gyroscope bias random work noise standard deviation.     
+# g_norm: 9.81007     # gravity magnitude
+acc_n: 0.0744          # AirSim MPU-6000 加速度计白噪声（离散化，dt=0.001s）
+gyr_n: 0.00276         # AirSim MPU-6000 陀螺仪白噪声（离散化，dt=0.001s）
+acc_w: 3.95e-7         # AirSim MPU-6000 加速度计零偏随机游走（离散化）
+gyr_w: 3.15e-5         # AirSim MPU-6000 陀螺仪零偏随机游走（离散化）
+g_norm: 9.81007       # 保持不变
+
+#unsynchronization parameters
+estimate_td: 0                      # online estimate time offset between camera and imu
+td: 0.0                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+
+#loop closure parameters
+load_previous_pose_graph: 0        # load and reuse previous pose graph; load from 'pose_graph_save_path'
+pose_graph_save_path: "~/output/pose_graph/" # save and load path
+save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 

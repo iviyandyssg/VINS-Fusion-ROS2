@@ -48,7 +48,7 @@ int FeatureManager::getFeatureCount()
     return cnt;
 }
 
-
+//当前帧加入特征管理器，判断是否为关键帧
 bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td)
 {
     ROS_DEBUG("input feature: %d", (int)image.size());
@@ -61,6 +61,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
     long_track_num = 0;
     for (auto &id_pts : image)
     {
+        // id_pts = pair<point 的 track id，在左目/右目的像素坐标> id_pts.second[0].second = 左目 Eigen::Matrix<double, 7, 1>
         FeaturePerFrame f_per_fra(id_pts.second[0].second, td);
         assert(id_pts.second[0].first == 0);
         if(id_pts.second.size() == 2)
@@ -68,19 +69,20 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
             f_per_fra.rightObservation(id_pts.second[1].second);
             assert(id_pts.second[1].first == 1);
         }
-
+        //判断是新特征点还是可跟踪的old feature
         int feature_id = id_pts.first;
         auto it = find_if(feature.begin(), feature.end(), [feature_id](const FeaturePerId &it)
                           {
             return it.feature_id == feature_id;
                           });
-
+        // 新增feature
         if (it == feature.end())
         {
             feature.push_back(FeaturePerId(feature_id, frame_count));
             feature.back().feature_per_frame.push_back(f_per_fra);
             new_feature_num++;
         }
+        // old feature 新增跟踪记录
         else if (it->feature_id == feature_id)
         {
             it->feature_per_frame.push_back(f_per_fra);
@@ -158,7 +160,7 @@ void FeatureManager::setDepth(const VectorXd &x)
             it_per_id.solve_flag = 1;
     }
 }
-
+//移除明确三角化失败的特征点
 void FeatureManager::removeFailures()
 {
     for (auto it = feature.begin(), it_next = feature.begin();
@@ -194,7 +196,7 @@ VectorXd FeatureManager::getDepthVector()
     return dep_vec;
 }
 
-
+// 单个点的三角化
 void FeatureManager::triangulatePoint(Eigen::Matrix<double, 3, 4> &Pose0, Eigen::Matrix<double, 3, 4> &Pose1,
                         Eigen::Vector2d &point0, Eigen::Vector2d &point1, Eigen::Vector3d &point_3d)
 {
@@ -211,7 +213,7 @@ void FeatureManager::triangulatePoint(Eigen::Matrix<double, 3, 4> &Pose0, Eigen:
     point_3d(2) = triangulated_point(2) / triangulated_point(3);
 }
 
-
+//输入是世界系下的 3D 点和当前帧的 2D 归一化坐标，以及上一帧的相机位姿初值（w_T_cam）
 bool FeatureManager::solvePoseByPnP(Eigen::Matrix3d &R, Eigen::Vector3d &P, 
                                       vector<cv::Point2f> &pts2D, vector<cv::Point3f> &pts3D)
 {
@@ -256,6 +258,7 @@ bool FeatureManager::solvePoseByPnP(Eigen::Matrix3d &R, Eigen::Vector3d &P,
     return true;
 }
 
+// PnP求解当前帧位姿
 void FeatureManager::initFramePoseByPnP(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vector3d tic[], Matrix3d ric[])
 {
 
@@ -263,17 +266,18 @@ void FeatureManager::initFramePoseByPnP(int frameCnt, Vector3d Ps[], Matrix3d Rs
     {
         vector<cv::Point2f> pts2D;
         vector<cv::Point3f> pts3D;
-        for (auto &it_per_id : feature)
+        for (auto &it_per_id : feature)//遍历windows内所有帧的特征点，选三角化成功的
         {
             if (it_per_id.estimated_depth > 0)
             {
                 int index = frameCnt - it_per_id.start_frame;
-                if((int)it_per_id.feature_per_frame.size() >= index + 1)
+                if((int)it_per_id.feature_per_frame.size() >= index + 1)//如果这个特征点在当前帧上(所以使用之前会先调用addFeatureCheckParallax)
                 {
                     Vector3d ptsInCam = ric[0] * (it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth) + tic[0];
                     Vector3d ptsInWorld = Rs[it_per_id.start_frame] * ptsInCam + Ps[it_per_id.start_frame];
 
                     cv::Point3f point3d(ptsInWorld.x(), ptsInWorld.y(), ptsInWorld.z());
+                    //这个特征点在当前帧的像素坐标
                     cv::Point2f point2d(it_per_id.feature_per_frame[index].point.x(), it_per_id.feature_per_frame[index].point.y());
                     pts3D.push_back(point3d);
                     pts2D.push_back(point2d); 
@@ -282,7 +286,7 @@ void FeatureManager::initFramePoseByPnP(int frameCnt, Vector3d Ps[], Matrix3d Rs
         }
         Eigen::Matrix3d RCam;
         Eigen::Vector3d PCam;
-        // trans to w_T_cam
+        // trans to w_T_cam 当前帧的camera位姿
         RCam = Rs[frameCnt - 1] * ric[0];
         PCam = Rs[frameCnt - 1] * tic[0] + Ps[frameCnt - 1];
 
@@ -299,13 +303,14 @@ void FeatureManager::initFramePoseByPnP(int frameCnt, Vector3d Ps[], Matrix3d Rs
     }
 }
 
+// 所有特征点的三角化(求深度)
 void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vector3d tic[], Matrix3d ric[])
 {
     for (auto &it_per_id : feature)
     {
         if (it_per_id.estimated_depth > 0)
             continue;
-
+        // 考虑每一个还没有三角化的特征点是否有三角化的可能性
         if(STEREO && it_per_id.feature_per_frame[0].is_stereo)
         {
             int imu_i = it_per_id.start_frame;
@@ -345,6 +350,7 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
             */
             continue;
         }
+        // 单目也可以通过 不同帧的同一个特征点达到三角化的效果
         else if(it_per_id.feature_per_frame.size() > 1)
         {
             int imu_i = it_per_id.start_frame;
@@ -380,6 +386,7 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
             */
             continue;
         }
+        // 如果上面两种方法都失败，多帧三角化
         it_per_id.used_num = it_per_id.feature_per_frame.size();
         if (it_per_id.used_num < 4)
             continue;
@@ -429,7 +436,7 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
 
     }
 }
-
+// 剔除优化后被判定为外点的特征点
 void FeatureManager::removeOutlier(set<int> &outlierIndex)
 {
     std::set<int>::iterator itSet;
@@ -526,7 +533,7 @@ void FeatureManager::removeFront(int frame_count)
         }
     }
 }
-
+// 特征点在「倒数第二帧」和「倒数第一帧」之间的视差（parallax），用来判断这个特征点是否退化、是否需要被剔除，或者作为关键帧选择的依据
 double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int frame_count)
 {
     //check the second last frame is keyframe or not

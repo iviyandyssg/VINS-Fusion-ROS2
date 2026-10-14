@@ -18,14 +18,16 @@
 #include <sensor_msgs/msg/image.hpp>
 // #include <sensor_msgs/image_encodings.h>
 #include "image_encodings.hpp"
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/point_stamped.h>
 #include <visualization_msgs/msg/marker.hpp>
 #include <tf2_ros/transform_broadcaster.h>
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2/LinearMath/Transform.h>
+#include <tf2/transform_datatypes.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+// #include <tf2/LinearMath/Quaternion.h>
+// #include <tf2/LinearMath/Transform.h>
 #include "CameraPoseVisualization.h"
 #include <eigen3/Eigen/Dense>
 #include "../estimator/estimator.h"

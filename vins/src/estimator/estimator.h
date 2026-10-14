@@ -83,7 +83,7 @@ class Estimator
     void fastPredictIMU(double t, Eigen::Vector3d linear_acceleration, Eigen::Vector3d angular_velocity);
     bool IMUAvailable(double t);
     void initFirstIMUPose(vector<pair<double, Eigen::Vector3d>> &accVector);
-
+    // 初始化 or 非线性优化阶段 
     enum SolverFlag
     {
         INITIAL,
@@ -99,10 +99,10 @@ class Estimator
     std::mutex mProcess;
     std::mutex mBuf;
     std::mutex mPropagate;
-    queue<pair<double, Eigen::Vector3d>> accBuf;
-    queue<pair<double, Eigen::Vector3d>> gyrBuf;
+    queue<pair<double, Eigen::Vector3d>> accBuf; //t, linear acc
+    queue<pair<double, Eigen::Vector3d>> gyrBuf; //t, angle v
     queue<pair<double, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1> > > > > > featureBuf;
-    double prevTime, curTime;
+    double prevTime, curTime;//上一个img帧时间，当前在处理的img帧时间
     bool openExEstimation;
 
     std::thread trackThread;
@@ -113,10 +113,10 @@ class Estimator
     SolverFlag solver_flag;
     MarginalizationFlag  marginalization_flag;
     Vector3d g;
-
+    //可优化，body to camera
     Matrix3d ric[2];
     Vector3d tic[2];
-
+    //滑窗
     Vector3d        Ps[(WINDOW_SIZE + 1)];
     Vector3d        Vs[(WINDOW_SIZE + 1)];
     Matrix3d        Rs[(WINDOW_SIZE + 1)];
@@ -129,7 +129,7 @@ class Estimator
     double Headers[(WINDOW_SIZE + 1)];
 
     IntegrationBase *pre_integrations[(WINDOW_SIZE + 1)];
-    Vector3d acc_0, gyr_0;
+    Vector3d acc_0, gyr_0;//当前正在处理的imu的acc 和 gyr
 
     vector<double> dt_buf[(WINDOW_SIZE + 1)];
     vector<Vector3d> linear_acceleration_buf[(WINDOW_SIZE + 1)];
@@ -143,7 +143,7 @@ class Estimator
     MotionEstimator m_estimator;
     InitialEXRotation initial_ex_rotation;
 
-    bool first_imu;
+    bool first_imu;//false 时imu还没有预积分过
     bool is_valid, is_key;
     bool failure_occur;
 
@@ -166,7 +166,7 @@ class Estimator
     MarginalizationInfo *last_marginalization_info;
     vector<double *> last_marginalization_parameter_blocks;
 
-    map<double, ImageFrame> all_image_frame;
+    map<double, ImageFrame> all_image_frame;//windows内所有帧
     IntegrationBase *tmp_pre_integration;
 
     Eigen::Vector3d initP;
@@ -176,6 +176,6 @@ class Estimator
     Eigen::Vector3d latest_P, latest_V, latest_Ba, latest_Bg, latest_acc_0, latest_gyr_0;
     Eigen::Quaterniond latest_Q;
 
-    bool initFirstPoseFlag;
+    bool initFirstPoseFlag;//初始化未成功时用false
     bool initThreadFlag;
 };

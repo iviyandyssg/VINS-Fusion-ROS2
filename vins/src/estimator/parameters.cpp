@@ -10,7 +10,7 @@
 #include "parameters.h"
 
 double INIT_DEPTH;
-double MIN_PARALLAX;
+double MIN_PARALLAX;//平均视差大于该阈值则认为是关键帧
 double ACC_N, ACC_W;
 double GYR_N, GYR_W;
 
@@ -28,7 +28,7 @@ double BIAS_GYR_THRESHOLD;
 double SOLVER_TIME;
 int NUM_ITERATIONS;
 int ESTIMATE_EXTRINSIC;
-int ESTIMATE_TD;
+int ESTIMATE_TD;//是否要在线估计时间偏移
 int ROLLING_SHUTTER;
 std::string EX_CALIB_RESULT_PATH;
 std::string VINS_RESULT_PATH;
@@ -71,6 +71,7 @@ T readParam(rclcpp::Node::SharedPtr n, std::string name)
     return ans;
 }
 
+// 可以用于从Node中读取一个config地址，用于读取给estimate设置参数
 void readParameters(std::string config_file)
 {
     FILE *fh = fopen(config_file.c_str(),"r");

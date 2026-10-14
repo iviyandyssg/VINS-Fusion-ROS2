@@ -15,7 +15,7 @@
 #include <thread>
 #include <mutex>
 #include <rclcpp/rclcpp.hpp>
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/opencv.hpp>
 #include "estimator/estimator.h"
 #include "estimator/parameters.h"
@@ -23,12 +23,13 @@
 
 Estimator estimator;
 
-queue<sensor_msgs::msg::Imu::ConstPtr> imu_buf;
+queue<sensor_msgs::msg::Imu::ConstPtr> imu_buf; //实质上弃用了
 queue<sensor_msgs::msg::PointCloud::ConstPtr> feature_buf;
 queue<sensor_msgs::msg::Image::ConstPtr> img0_buf;
 queue<sensor_msgs::msg::Image::ConstPtr> img1_buf;
 std::mutex m_buf;
 
+// 注意先在queue中记录raw data，实际process中再进行提取
 // header: 1403715278
 void img0_callback(const sensor_msgs::msg::Image::SharedPtr img_msg)
 {
@@ -70,6 +71,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
     return img;
 }
 
+// 主要循环
 // extract images with same timestamp from two topics
 void sync_process()
 {
@@ -77,7 +79,7 @@ void sync_process()
     {
         if(STEREO)
         {
-            cv::Mat image0, image1;
+            cv::Mat image0, image1;//存储当前帧
             std_msgs::msg::Header header;
             double time = 0;
             m_buf.lock();
@@ -86,7 +88,9 @@ void sync_process()
                 double time0 = img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9);
                 double time1 = img1_buf.front()->header.stamp.sec + img1_buf.front()->header.stamp.nanosec * (1e-9);
 
-                // 0.003s sync tolerance
+                // std::cout << "diff t0 and t1 : " << std::abs(time0 - time1) << std::endl;
+
+                // 0.003s sync tolerance 3ms
                 if(time0 < time1 - 0.003)
                 {
                     img0_buf.pop();

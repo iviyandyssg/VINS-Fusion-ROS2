@@ -21,7 +21,8 @@ find_package(Ceres REQUIRED)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(Eigen3)
 
-include_directories( ${CERES_INCLUDE_DIRS}  ${EIGEN3_INCLUDE_DIR}) #${catkin_INCLUDE_DIRS})
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/../camera_models/include
+  ${CERES_INCLUDE_DIRS}  ${EIGEN3_INCLUDE_DIR}) #${catkin_INCLUDE_DIRS})
 
 
 
@@ -43,7 +44,21 @@ add_executable(loop_fusion_node
 
     
 # added from DEBUG
-ament_target_dependencies(loop_fusion_node camera_models rclcpp ament_index_cpp std_msgs sensor_msgs visualization_msgs nav_msgs cv_bridge OpenCV) # roslib) # does 'roslib' really need ??
+# ament_target_dependencies(loop_fusion_node camera_models rclcpp ament_index_cpp std_msgs sensor_msgs visualization_msgs nav_msgs cv_bridge OpenCV) # roslib) # does 'roslib' really need ??
+# 新的链接方式（替代ament_target_dependencies）
+target_link_libraries(loop_fusion_node
+    # camera_models
+    ${camera_models_LIBRARIES} 
+    rclcpp::rclcpp
+    ament_index_cpp::ament_index_cpp
+    std_msgs::std_msgs
+    sensor_msgs::sensor_msgs
+    visualization_msgs::visualization_msgs
+    nav_msgs::nav_msgs
+    cv_bridge::cv_bridge
+    ${OpenCV_LIBS}
+    ${CERES_LIBRARIES}
+)
 
 target_link_libraries(loop_fusion_node ${OpenCV_LIBS} ${CERES_LIBRARIES} ) #${catkin_LIBRARIES}  )
 

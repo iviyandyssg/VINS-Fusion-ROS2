@@ -1,0 +1,57 @@
+name: VINS INIT Tests
+
+on:
+  # 定时触发：每天 UTC 时间凌晨 2:00 运行
+  # schedule:
+  #   - cron: '0 18 * * *'
+  # 手动触发按钮，方便调试
+  workflow_dispatch:
+
+jobs:
+  run-vins-tests:
+    # 使用自托管 Runner，才能访问本地的 C++ 工作空间和 rosbag 数据
+    # 如果你没有注册 self-hosted runner，改成 ubuntu-latest，但需要自行准备环境
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # - name: Set up Python
+      #   uses: actions/setup-python@v5
+      #   with:
+      #     python-version: '3.10'
+
+      # - name: Install Python dependencies
+      #   run: |
+      #     python -m pip install --upgrade pip
+      #     pip install -r requirements.txt
+      #     pip install sik-stochastic-tests
+
+      - name: Run VINS INIT tests
+        # 即使测试失败，也继续执行后续步骤，以便上传报告和上报结果
+        continue-on-error: true
+        env:
+          VINS_WORKSPACE: /run/media/sydai/disk/git_ws/vins_ws
+          VINS_BAG_ROOT: /run/media/sydai/disk/dataset/swimming_pool/sim
+          VINS_CONFIG: /run/media/sydai/disk/git_ws/vins_ws/src/VINS-Fusion-ROS2/config/simulation/sim_config.yaml
+          VINS_OUTPUT_ROOT: /run/media/sydai/disk/dataset/swimming_pool/test_vins_results
+        run: |
+          mkdir -p reports
+          pytest pytest/test_vins.py --junitxml=reports/results.xml -v
+
+      - name: Upload test results as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vins-test-results
+          path: reports/results.xml
+
+      # - name: Upload results to SquashTM
+      #   if: always()
+      #   env:
+      #     SQUASH_TM_URL: ${{ secrets.SQUASH_TM_URL }}
+      #     SQUASH_TM_API_TOKEN: ${{ secrets.SQUASH_TM_API_TOKEN }}
+      #     SQUASH_TM_ITERATION_ID: ${{ secrets.SQUASH_TM_ITERATION_ID }}
+      #   run: |
+      #     python ci/parse_and_upload.py

@@ -28,13 +28,18 @@ Estimator::~Estimator()
 
 void Estimator::clearState()
 {
+    printf("clear state!\n");
+
     mProcess.lock();
+    // 原版这里应该会有bug?restart的时候 一面清空同时inputIMU和inputImage一面插入新数据
+    mBuf.lock();
     while(!accBuf.empty())
         accBuf.pop();
     while(!gyrBuf.empty())
         gyrBuf.pop();
     while(!featureBuf.empty())
         featureBuf.pop();
+    mBuf.unlock();
 
     prevTime = -1;
     curTime = 0;
@@ -99,8 +104,11 @@ void Estimator::clearState()
     mProcess.unlock();
 }
 
+// estimator本身主要需要的主要是body to camera，featureTracker需要相机内参
 void Estimator::setParameter()
 {
+    printf("set parameter.\n");
+
     mProcess.lock();
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
@@ -164,6 +172,7 @@ void Estimator::changeSensorType(int use_imu, int use_stereo)
     }
 }
 
+// 通过f manager get feature + 激活process
 void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
 {
     inputImageCnt++;
@@ -203,6 +212,7 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
     
 }
 
+//imu频率更高，每个新传入的imu快速处理(中值积分为优化提供初始值+pub imu odom)
 void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vector3d &angularVelocity)
 {
     mBuf.lock();
@@ -232,7 +242,7 @@ void Estimator::inputFeature(double t, const map<int, vector<pair<int, Eigen::Ma
         processMeasurements();
 }
 
-
+//从 IMU 缓冲区提取指定时间段数据 为预积分准备
 bool Estimator::getIMUInterval(double t0, double t1, vector<pair<double, Eigen::Vector3d>> &accVector, 
                                 vector<pair<double, Eigen::Vector3d>> &gyrVector)
 {
@@ -273,6 +283,8 @@ bool Estimator::getIMUInterval(double t0, double t1, vector<pair<double, Eigen::
     return true;
 }
 
+// 是否存在有效的IMU
+// 原理是把当前要处理的img帧时间输入，判断imu是否至少有一个该时间前的有效数据
 bool Estimator::IMUAvailable(double t)
 {
     if(!accBuf.empty() && t <= accBuf.back().first)
@@ -281,10 +293,11 @@ bool Estimator::IMUAvailable(double t)
         return false;
 }
 
+//主要循环
 void Estimator::processMeasurements()
 {
     while (1)
-    {
+    { 
         // cout << "[processMeasurements]  loop - start" << endl;
 
         pair<double, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1> > > > > feature;
@@ -323,6 +336,7 @@ void Estimator::processMeasurements()
             // cout << "3" << endl;
             if(USE_IMU)
             {
+                // 注意初始化IMU和整体初始化用的flag是不同的
                 if(!initFirstPoseFlag)
                     initFirstIMUPose(accVector);
                 for(size_t i = 0; i < accVector.size(); i++)
@@ -373,6 +387,14 @@ void Estimator::processMeasurements()
             // cout << "6" << endl;
 
             // assert(0);
+
+            //为了修复死锁bug，代码移动到这里
+            if(failure_occur){
+                clearState();
+                setParameter();
+                ROS_WARN("system reboot!");
+            }
+
         }
         // cout << "[processMeasurements]  loop - end" << endl;
 
@@ -384,14 +406,17 @@ void Estimator::processMeasurements()
     }
 }
 
-
+//初始化IMU 根据静止状态下加速度计测量的重力方向，确定初始姿态 Rs[0]（即世界坐标系到机体坐标系的旋转）
+//初始帧的世界系 X 轴指向机体的水平投影方向
 void Estimator::initFirstIMUPose(vector<pair<double, Eigen::Vector3d>> &accVector)
 {
-    printf("init first imu pose\n");
+    // printf("init first imu pose\n");
+    ROS_INFO("init first imu pose");
     initFirstPoseFlag = true;
     //return;
     Eigen::Vector3d averAcc(0, 0, 0);
     int n = (int)accVector.size();
+    // 多个加速度的平均值
     for(size_t i = 0; i < accVector.size(); i++)
     {
         averAcc = averAcc + accVector[i].second;
@@ -414,7 +439,7 @@ void Estimator::initFirstPose(Eigen::Vector3d p, Eigen::Matrix3d r)
     initR = r;
 }
 
-
+// 预积分
 void Estimator::processIMU(double t, double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity)
 {
     if (!first_imu)
@@ -459,6 +484,8 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
 
     ROS_DEBUG("new image coming ------------------------------------------");
     ROS_DEBUG("Adding feature points %lu", image.size());
+    // 注意这里当前帧还没插入，所以在判断次新帧是否为关键帧
+    // 非关键帧则可以被移除改插入新帧
     if (f_manager.addFeatureCheckParallax(frame_count, image, td))
     {
         marginalization_flag = MARGIN_OLD;
@@ -540,7 +567,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                     frame_it->second.T = Ps[i];
                     i++;
                 }
-                solveGyroscopeBias(all_image_frame, Bgs);
+                solveGyroscopeBias(all_image_frame, Bgs); //更新零偏
                 for (int i = 0; i <= WINDOW_SIZE; i++)
                 {
                     pre_integrations[i]->repropagate(Vector3d::Zero(), Bgs[i]);
@@ -584,6 +611,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     }
     else
     {
+        // 选择通过PnP还是IMU预积分更新优化前的位置
         if(!USE_IMU)
             f_manager.initFramePoseByPnP(frame_count, Ps, Rs, tic, ric);
         f_manager.triangulate(frame_count, Ps, Rs, tic, ric);
@@ -602,14 +630,15 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
             predictPtsInNextFrame();
         }
             
-
+        //判断是否需要重启
+        //原版代码这里启用会造成死锁的问题，因为调用processImage时外层加锁了，而clearState内部又加了一次锁
         if (failureDetection())
         {
             ROS_WARN("failure detection!");
             failure_occur = 1;
-            clearState();
-            setParameter();
-            ROS_WARN("system reboot!");
+            // clearState();
+            // setParameter();
+            // ROS_WARN("system reboot!");
             return;
         }
 
@@ -627,7 +656,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
         updateLatestStates();
     }  
 }
-
+//单目使用 用纯视觉 SFM（Structure from Motion）恢复出滑动窗口内所有帧的位姿和特征点的 3D 结构，作为后续视觉-惯性对齐的初值
 bool Estimator::initialStructure()
 {
     TicToc t_sfm;
@@ -656,7 +685,8 @@ bool Estimator::initialStructure()
         if(var < 0.25)
         {
             ROS_INFO("IMU excitation not enouth!");
-            //return false;
+            // std::cout << "var " << var << std::endl;
+            // return false;
         }
     }
     // global sfm
@@ -1005,14 +1035,15 @@ void Estimator::double2vector()
         td = para_Td[0][0];
 
 }
-
+// 用于判断是否跟踪失败/发散 当前被禁用了
+// 因为可以长时间跟踪的点太少，imu偏差过大，移动旋转过与剧烈都可能失败
 bool Estimator::failureDetection()
 {
     return false;
     if (f_manager.last_track_num < 2)
     {
         ROS_INFO(" little feature %d", f_manager.last_track_num);
-        //return true;
+        return true;
     }
     if (Bas[WINDOW_SIZE].norm() > 2.5)
     {
@@ -1034,13 +1065,13 @@ bool Estimator::failureDetection()
     Vector3d tmp_P = Ps[WINDOW_SIZE];
     if ((tmp_P - last_P).norm() > 5)
     {
-        //ROS_INFO(" big translation");
-        //return true;
+        ROS_INFO(" big translation");
+        return true;
     }
     if (abs(tmp_P.z() - last_P.z()) > 1)
     {
-        //ROS_INFO(" big z translation");
-        //return true; 
+        ROS_INFO(" big z translation");
+        return true; 
     }
     Matrix3d tmp_R = Rs[WINDOW_SIZE];
     Matrix3d delta_R = tmp_R.transpose() * last_R;
@@ -1050,11 +1081,13 @@ bool Estimator::failureDetection()
     if (delta_angle > 50)
     {
         ROS_INFO(" big delta_angle ");
-        //return true;
+        return true;
     }
     return false;
 }
 
+// 参数块1 ：每帧位姿态，速度偏置(just imu) 参数块2：相机外参(可选) 参数块3：时间偏移(可选) 参数块4：每个特征点(优化深度)
+// 约束1：滑窗边缘化的先验信息 ， 约束2：imu预积分 ， 约束3：视觉重投影
 void Estimator::optimization()
 {
     TicToc t_whole, t_prepare;
@@ -1073,9 +1106,10 @@ void Estimator::optimization()
         if(USE_IMU)
             problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEEDBIAS);
     }
+    //纯视觉时要固定第0帧规范坐标系
     if(!USE_IMU)
         problem.SetParameterBlockConstant(para_Pose[0]);
-
+    //相机外参优化需要满足速度足够大 + 滑窗已满 + 非固定外参
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         ceres::Manifold *local_parameterization = new PoseLocalParameterization();
@@ -1092,7 +1126,7 @@ void Estimator::optimization()
         }
     }
     problem.AddParameterBlock(para_Td[0], 1);
-
+    //最新帧运动速度很小时，会固定时间偏移
     if (!ESTIMATE_TD || Vs[0].norm() < 0.2)
         problem.SetParameterBlockConstant(para_Td[0]);
 
@@ -1393,7 +1427,7 @@ void Estimator::optimization()
     //printf("whole marginalization costs: %f \n", t_whole_marginalization.toc());
     //printf("whole time for ceres: %f \n", t_whole.toc());
 }
-
+//在窗口满时移除旧帧或新帧
 void Estimator::slideWindow()
 {
     TicToc t_margin;
@@ -1531,7 +1565,7 @@ void Estimator::getPoseInWorldFrame(int index, Eigen::Matrix4d &T)
     T.block<3, 3>(0, 0) = Rs[index];
     T.block<3, 1>(0, 3) = Ps[index];
 }
-
+//在下一帧到来之前，根据当前估计的位姿和特征点的 3D 位置，预测它们在下一帧图像中的大致位置，并传给特征追踪器作为初值
 void Estimator::predictPtsInNextFrame()
 {
     //printf("predict pts in next frame\n");
@@ -1578,7 +1612,7 @@ double Estimator::reprojectionError(Matrix3d &Ri, Vector3d &Pi, Matrix3d &rici, 
     double ry = residual.y();
     return sqrt(rx * rx + ry * ry);
 }
-
+//通过重投影误差来检测并剔除特征点中的外点
 void Estimator::outliersRejection(set<int> &removeIndex)
 {
     //return;
@@ -1639,6 +1673,7 @@ void Estimator::outliersRejection(set<int> &removeIndex)
     }
 }
 
+// 利用imu中值积分快速更新pose，和v为后续优化提供初始值
 void Estimator::fastPredictIMU(double t, Eigen::Vector3d linear_acceleration, Eigen::Vector3d angular_velocity)
 {
     double dt = t - latest_time;
@@ -1653,7 +1688,7 @@ void Estimator::fastPredictIMU(double t, Eigen::Vector3d linear_acceleration, Ei
     latest_acc_0 = linear_acceleration;
     latest_gyr_0 = angular_velocity;
 }
-
+//把滑动窗口最新帧的状态 + 缓冲区内剩余的 IMU 数据，快速递推到当前最新时刻
 void Estimator::updateLatestStates()
 {
     mPropagate.lock();
