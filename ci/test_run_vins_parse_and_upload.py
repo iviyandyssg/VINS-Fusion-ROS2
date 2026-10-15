@@ -105,13 +105,21 @@ def upload_result(base_url, token, iteration_id, result, dry_run=False):
         print(f"[DRY-RUN] POST {url}\n          {payload}")
         return
 
-    resp = requests.post(url, json=payload,
+    # resp = requests.post(url, json=payload,
+    #                      headers={
+    #                          "Authorization": f"Bearer {token}",
+    #                          "Content-Type": "application/json",
+    #                          "Accept": "application/json",
+    #                      },
+    #                      timeout=30)
+    resp = requests.post(url, 
+                         json=payload, 
                          headers={
                              "Authorization": f"Bearer {token}",
                              "Content-Type": "application/json",
                              "Accept": "application/json",
-                         },
-                         timeout=30)
+                         }, 
+                         timeout=30, proxies={"http": None, "https": None})
     resp.raise_for_status()
     print(f"[OK] {key} -> {result.status}")
 
