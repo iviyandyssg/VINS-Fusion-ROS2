@@ -52,6 +52,6 @@ jobs:
         env:
           SQUASH_TM_URL: ${{ secrets.SQUASH_TM_URL }}
           SQUASH_TM_API_TOKEN: ${{ secrets.SQUASH_TM_API_TOKEN }}
-          SQUASH_TM_ITERATION_ID: ${{ secrets.SQUASH_TM_ITERATION_ID }}
+          # SQUASH_TM_ITERATION_ID: ${{ secrets.SQUASH_TM_ITERATION_ID }}
         run: |
-          python ci/parse_and_upload.py
+          python ci/test_run_vins_parse_and_upload.py
