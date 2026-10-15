@@ -8,7 +8,7 @@ num_of_cam: 2
 imu_topic: "/Sim/SceneNonphysicsDrone/robots/Drone1/sensors/IMU1/imu_kinematics"
 image0_topic: "/Sim/SceneNonphysicsDrone/robots/Drone1/sensors/LeftCamera/scene_camera/image"
 image1_topic: "/Sim/SceneNonphysicsDrone/robots/Drone1/sensors/RightCamera/scene_camera/image"
-output_path: "/run/media/sydai/disk/dataset/swimming_pool/test_vins_results/20261012_034850_629136_direct-rectangle-001_41cf2bbf"
+output_path: "/run/media/sydai/disk/dataset/swimming_pool/test_vins_results/20261012_034525_726153_direct-rectangle-001_87599523"
 
 cam0_calib: "sim_cam0_pinhole.yaml"
 cam1_calib: "sim_cam1_pinhole.yaml"

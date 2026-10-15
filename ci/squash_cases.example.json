@@ -1,0 +1,55 @@
+[
+  {
+    "project": "VINS",
+    "folder": ["初始化"],
+    "name": "有效数据下初始化成功",
+    "reference": "INIT-001",
+    "drafted_by_ai": true,
+    "description": "验证 VINS 使用有效相机和 IMU 数据能够初始化。\n此示例需补充实际数据集和超时阈值。",
+    "prerequisite": "ROS 2 环境可用，配置文件与指定 rosbag 可访问。",
+    "weight": "HIGH",
+    "nature": "NAT_FUNCTIONAL_TESTING",
+    "type": "TYP_END_TO_END_TESTING",
+    "status": "WORK_IN_PROGRESS",
+    "milestones": ["M1", "M2"],
+    "steps": [
+      {
+        "action": "使用指定配置启动 VINS。",
+        "expected": "节点正常启动，没有配置加载错误。"
+      },
+      {
+        "action": "播放指定 rosbag，检查初始化状态。",
+        "expected": "在约定的超时时间内初始化成功，并输出有效轨迹。"
+      }
+    ],
+    "parameters": [
+      { "name": "timeout", "description": "初始化超时时间（秒）" }
+    ],
+    "datasets": [
+      {
+        "name": "DS_VALID",
+        "values": [
+          { "param": "timeout", "value": "30" }
+        ]
+      }
+    ],
+    "requirements": [
+      { "path": "/VINS/REQ-INIT", "version": "1" }
+    ]
+  },
+  {
+    "project": "VINS",
+    "folder": ["初始化", "异常场景"],
+    "name": "无 IMU 数据初始化失败",
+    "reference": "INIT-002",
+    "drafted_by_ai": false,
+    "description": "验证缺少 IMU 数据时初始化应失败并给出提示。",
+    "prerequisite": "ROS 2 环境可用。",
+    "steps": [
+      {
+        "action": "仅播放相机 rosbag，不提供 IMU。",
+        "expected": "初始化超时，输出明确的错误日志。"
+      }
+    ]
+  }
+]
