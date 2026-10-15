@@ -94,7 +94,7 @@ def upload_result(base_url, token, iteration_id, result, dry_run=False):
             "reference": key,
             "status": result.status,
             "duration": int(result.duration * 1000), #ms
-            "failure_details": result.msg,
+            "failure_details": result.message,
         }
     ]
     payload = {
